@@ -1,0 +1,10 @@
+PRINT "Hello, World!"
+
+SET text = "this is string!"
+PRINT text
+
+SET text2 = "TEXT TWO!"
+PRINT text2
+
+SET text = "REDEFINED!"
+PRINT text
