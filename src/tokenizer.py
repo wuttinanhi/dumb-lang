@@ -1,9 +1,9 @@
 from typing import List
 import re
 
-KEYWORDS = ("SET", "IF", "THEN", "ELSE", "END")
+KEYWORDS = ("SET", "IF", "THEN", "ELSE", "END", "PRINT")
 
-OPERATOR = ("+", "-", "*", "/", "=")
+OPERATOR = ("+", "-", "*", "/", "=", "(", ")")
 
 NEWLINE = ("\r\n", "\n")
 
@@ -94,7 +94,7 @@ class Tokenizer:
                 break
 
             # type: NUMBER
-            if str(self.look(0)).isnumeric():
+            if str(self.look(0)).isnumeric() == True or str(self.look(0)) == ".":
                 number = ""
 
                 # create token
@@ -102,11 +102,17 @@ class Tokenizer:
                 token.type = ETokenType.NUMBER
                 token.start = self.current_position()
 
-                while str(self.look(0)).isnumeric():
+                while str(self.look(0)).isnumeric() == True or str(self.look(0)) == ".":
                     number = number + self.walk()
 
                 token.end = self.current_position()
-                token.value = int(number)
+
+                if number.isdigit() == True:
+                    token.value = int(number)
+                else:
+                    if number.startswith(".") == True:
+                        number = "0" + number
+                    token.value = float(number)
 
                 # add token to list
                 tokens.append(token)
@@ -255,9 +261,11 @@ class Tokenizer:
         return tokens
 
 
-tokenizer = Tokenizer('SET name = "abc" + 123')
+# tokenizer = Tokenizer("123.456+.456")
 
-tokens = tokenizer.tokenize()
+# tokenizer = Tokenizer("(1+2)*3")
 
-for token in tokens:
-    print(token)
+# tokens = tokenizer.tokenize()
+
+# for token in tokens:
+#     print(token)
