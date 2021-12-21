@@ -71,16 +71,19 @@ class Tokenizer:
         self.__cursor = position
 
     def walk(self):
+        self.__cursor = self.__cursor + 1
         if self.is_end() == True:
             return None
-        char = self.__text[self.__cursor]
-        self.__cursor = self.__cursor + 1
-        return char
+        next = self.__text[self.__cursor]
+        return next
 
     def look(self, step=1):
         if self.__cursor + step >= len(self.__text):
             return None
         return self.__text[self.__cursor + step]
+
+    def current_char(self):
+        return self.look(0)
 
     def is_end(self):
         return self.__cursor >= len(self.__text)
@@ -89,12 +92,13 @@ class Tokenizer:
         tokens: List[Token] = []
 
         while self.is_end() is False:
-            # if none break
-            if self.look(1) == None:
+            # if nothing then exit loop
+            if self.current_char() == None:
                 break
 
             # type: NUMBER
-            if str(self.look(0)).isnumeric() == True or str(self.look(0)) == ".":
+            if str(self.current_char()).isnumeric() == True or str(self.current_char()) == ".":
+                # number store
                 number = ""
 
                 # create token
@@ -102,11 +106,13 @@ class Tokenizer:
                 token.type = ETokenType.NUMBER
                 token.start = self.current_position()
 
-                while str(self.look(0)).isnumeric() == True or str(self.look(0)) == ".":
-                    number = number + self.walk()
+                while str(self.current_char()).isnumeric() == True or str(self.current_char()) == ".":
+                    number = number + self.current_char()
+                    self.walk()
 
                 token.end = self.current_position()
 
+                # to int or float
                 if number.isdigit() == True:
                     token.value = int(number)
                 else:
@@ -121,64 +127,75 @@ class Tokenizer:
                 continue
 
             # type: OPERATOR
-            if is_operator(self.look(0)) == True:
+            if is_operator(self.current_char()) == True:
                 # create token
                 token = Token()
                 token.type = ETokenType.OPERATOR
                 token.start = self.current_position()
-                token.value = str(self.walk())
+                token.value = str(self.current_char())
                 token.end = self.current_position()
 
                 # add token to list
                 tokens.append(token)
+
+                # walk to next
+                self.walk()
 
                 # skip to next
                 continue
 
             # type: NEWLINE
-            if is_newline(self.look(0)) == True:
+            if is_newline(self.current_char()) == True:
                 # create token
                 token = Token()
                 token.type = ETokenType.NEWLINE
                 token.start = self.current_position()
-                token.value = str(self.walk())
+                token.value = str(self.current_char())
                 token.end = self.current_position()
 
                 # add token to list
                 tokens.append(token)
+
+                # walk to next
+                self.walk()
 
                 # skip to next
                 continue
 
             # type: INDENT
-            if is_indent(self.look(0)) == True:
+            if is_indent(self.current_char()) == True:
                 # create token
                 token = Token()
                 token.type = ETokenType.INDENT
                 token.start = self.current_position()
-                token.value = str(self.walk())
+                token.value = str(self.current_char())
                 token.end = self.current_position()
 
                 # add token to list
                 tokens.append(token)
 
+                # walk to next
+                self.walk()
+
                 # skip to next
                 continue
 
             # type: STRING
-            if str(self.look(0)) == '"':
+            if str(self.current_char()) == '"':
+                # string store
+                string = ""
+
                 # create token
                 token = Token()
                 token.type = ETokenType.STRING
                 token.start = self.current_position()
 
-                # store
-                string = "" + self.walk()
+                while self.current_char() is not None:
+                    string = string + str(self.current_char())
+                    self.walk()
 
-                while self.look(0) is not None:
-                    string = string + str(self.walk())
-
-                    if str(self.look(-1)) == '"':
+                    if str(self.current_char()) == '"':
+                        string = string + str(self.current_char())
                         break
 
                 token.value = str(string)
@@ -187,22 +204,29 @@ class Tokenizer:
                 # add token to list
                 tokens.append(token)
 
+                # walk to next
+                self.walk()
+
                 # skip to next
                 continue
 
             # type: KEYWORD
-            if type(self.look(0)) == str:
+            if type(self.current_char()) == str:
+                # keyword store
+                keyword = ""
+
                 # create token
                 token = Token()
                 token.start = self.current_position()
-                keyword = ""
 
                 while (
-                    type(self.look(0)) == str
-                    and is_indent(self.look(0)) == False
-                    and is_newline(self.look(0)) == False
+                    type(self.current_char()) == str
+                    and is_indent(self.current_char()) == False
+                    and is_newline(self.current_char()) == False
                 ):
-                    keyword = keyword + self.walk()
+                    keyword = keyword + self.current_char()
+                    self.walk()
+
                     if is_keyword(keyword) == True:
                         break
 
@@ -223,24 +247,27 @@ class Tokenizer:
                     self.set_position(token.start)
 
             # type: NAME
-            if type(self.look(0)) == str:
+            if type(self.current_char()) == str:
+                # name store
+                name = ""
+
                 # create token
                 token = Token()
                 token.type = ETokenType.NAME
                 token.start = self.current_position()
-                name = ""
 
-                while type(self.look(0)) == str:
-                    if is_indent(self.look(0)) == True:
+                while type(self.current_char()) == str:
+                    if is_indent(self.current_char()) == True:
                         break
 
-                    if is_newline(self.look(0)) == True:
+                    if is_newline(self.current_char()) == True:
                         break
 
-                    if is_operator(self.look(0)) == True:
+                    if is_operator(self.current_char()) == True:
                         break
 
-                    name = name + self.walk()
+                    name = name + self.current_char()
+                    self.walk()
 
                 if is_valid_name(name) == True:
                     token.value = name
@@ -256,16 +283,17 @@ class Tokenizer:
                     raise NameError(f'Invalid name: "{name}"')
 
             # if unknown throw error
-            raise SyntaxError(f'Invalid syntax: "{self.look(0)}"')
+            raise SyntaxError(f'Invalid syntax: "{self.current_char()}"')
 
         return tokens
 
 
-# tokenizer = Tokenizer("123.456+.456")
+if __name__ == "__main__":
+    # tokenizer = Tokenizer("123.456+.456")
 
-# tokenizer = Tokenizer("(1+2)*3")
+    tokenizer = Tokenizer('"Hello, World!" + (123-456.789)')
 
-# tokens = tokenizer.tokenize()
+    tokens = tokenizer.tokenize()
 
-# for token in tokens:
-#     print(token)
+    for token in tokens:
+        print(token)
