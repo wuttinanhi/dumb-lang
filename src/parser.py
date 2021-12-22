@@ -1,6 +1,6 @@
 from typing import List
-from node import Node, NumberNode, BinOpNode, ENodeType, EMathOperation, operation_coverter
-from tokenizer import Tokenizer, Token, ETokenType
+from src.node import ModuleNode, Node, NumberNode, BinOpNode, ENodeType, EMathOperation, PrintNode, StringNode, operation_coverter
+from src.tokenizer import Tokenizer, Token, ETokenType, OPERATOR
 
 
 class Parser:
@@ -14,8 +14,7 @@ class Parser:
         self.token_index: int = 0
 
         # nodes
-        self.data_nodes: List[Node] = []
-        self.operation_nodes: List[Node] = []
+        self.nodes: List[Node] = []
 
     def current_token(self):
         if self.token_index >= len(self.tokens):
@@ -23,11 +22,11 @@ class Parser:
         return self.tokens[self.token_index]
 
     def advance_token(self):
-        if self.token_index + 1 >= len(self.tokens):
-            self.token_index = self.token_index + 1
+        self.token_index = self.token_index + 1
+
+        if self.token_index >= len(self.tokens):
             return None
 
-        self.token_index = self.token_index + 1
         next_token = self.tokens[self.token_index]
         return next_token
 
@@ -37,57 +36,152 @@ class Parser:
         return self.tokens[self.token_index + step]
 
     def has_more_token(self):
-        return self.token_index <= len(self.data_nodes)
-
-    def parse_any(self, token: Token):
-        if token.type == ETokenType.NUMBER:
-            return self.parse_number(token)
-        if token.type == ETokenType.OPERATOR:
-            return self.parse_binop(token)
-
-    def parse_number(self, token: Token):
-        # number node
-        if token.type == ETokenType.NUMBER:
-            node = NumberNode(token.value)
-            return node
-
-    def parse_binop(self, token: Token):
-        # binop node
-        if token.type == ETokenType.OPERATOR:
-            previous_node = self.data_nodes.pop()
-            next_token = self.advance_token()
-            right_node = self.parse_any(next_token)
-
-            node = BinOpNode(
-                operation=operation_coverter(token.value),
-                left=previous_node,
-                right=right_node,
-            )
-
-            return node
+        return self.token_index <= len(self.tokens)
 
     def parse(self):
-        while self.token_index <= len(self.tokens):
-            current_token = self.current_token()
+        module = ModuleNode()
 
-            if current_token is None:
-                break
+        while self.current_token() != None:
+            # skip indent or newline
+            if self.current_token().type in (ETokenType.INDENT, ETokenType.NEWLINE):
+                self.advance_token()
+                continue
 
-            node = self.parse_any(current_token)
-            self.data_nodes.append(node)
+            # parse print
+            if self.current_token().type == ETokenType.KEYWORDS and self.current_token().value == ENodeType.PRINT:
+                # skip space
+                self.advance_token()
+                self.advance_token()
 
+                # parse print content
+                print_value = self.parse_value()
+
+                # create print node
+                print_node = PrintNode(print_value)
+
+                # add print node to module
+                module.add_node(print_node)
+
+                # go to next
+                self.advance_token()
+                continue
+
+            # step to next token
             self.advance_token()
 
-        return self.data_nodes
+        return module
+        # return self.parse_value()
+
+    def parse_value(self):
+        if self.current_token().type == ETokenType.STRING:
+            string_node = StringNode(self.current_token().value)
+            return string_node
+
+        if self.current_token().type != ETokenType.NUMBER and self.current_token().value in OPERATOR == False:
+            return None
+
+        if self.current_token() == None:
+            return None
+
+        # START PARSING MATH EXPRESSION
+
+        result = self.parse_expression()
+
+        if self.current_token() != None:
+            return result
+
+        return result
+
+    def parse_expression(self):
+        result = self.parse_term()
+
+        while self.current_token() != None and self.current_token().value in ("+", "-"):
+            if self.current_token().value == "+":
+                self.advance_token()
+
+                result = BinOpNode(
+                    operation=EMathOperation.ADD,
+                    left=result,
+                    right=self.parse_term(),
+                )
+            elif self.current_token().value == "-":
+                self.advance_token()
+
+                result = BinOpNode(
+                    operation=EMathOperation.MINUS,
+                    left=result,
+                    right=self.parse_term(),
+                )
+
+        return result
+
+    def parse_term(self):
+        result = self.parse_factor()
+
+        while self.current_token() != None and self.current_token().value in ("*", "/"):
+            if self.current_token().value == "*":
+                self.advance_token()
+
+                result = BinOpNode(
+                    operation=EMathOperation.MULTIPLY,
+                    left=result,
+                    right=self.parse_factor(),
+                )
+            elif self.current_token().value == "/":
+                self.advance_token()
+
+                result = BinOpNode(
+                    operation=EMathOperation.DIVIDE,
+                    left=result,
+                    right=self.parse_factor(),
+                )
+
+        return result
+
+    def parse_factor(self):
+        token = self.current_token()
+
+        if self.current_token().type == ETokenType.OPERATOR and self.current_token().value == "(":
+            self.advance_token()
+            result = self.parse_expression()
+
+            if self.current_token().value != ")":
+                raise SyntaxError("Invalid syntax!")
+
+            self.advance_token()
+            return result
+
+        if self.current_token().type == ETokenType.NUMBER:
+            self.advance_token()
+            return NumberNode(token.value)
+
+        if self.current_token().type == ETokenType.OPERATOR and self.current_token().value == "+":
+            self.advance_token()
+            return NumberNode(self.parse_factor())
+
+        if self.current_token().type == ETokenType.OPERATOR and self.current_token().value == "-":
+            self.advance_token()
+
+            parse_factor: Node = self.parse_factor()
+            parse_factor_value = parse_factor.exec()
+
+            if str(parse_factor_value).startswith("-"):
+                return NumberNode(abs(parse_factor_value))
+
+            return NumberNode(-abs(parse_factor_value))
+
+        raise SyntaxError("Invalid syntax!")
 
 
 if __name__ == "__main__":
-    parser = Parser("1+2+3 ")
-    print(parser.parse()[0].exec())
+    parser = Parser("7-5+1")
+    parsed_value = parser.parse_value().exec()
+    assert parsed_value == 3
 
-    parser = Parser("5+5+10+10 ")
-    print(parser.parse()[0].exec())
+    parser = Parser("7-(5+1)")
+    parsed_value = parser.parse_value().exec()
+    assert parsed_value == 1
 
-    parser = Parser("2*2-2 ")
-    print(parser.parse()[0])
-    print(parser.parse()[0].exec())
+    parser = Parser("-(-5)")
+    parsed_value = parser.parse_value().exec()
+    assert parsed_value == 5

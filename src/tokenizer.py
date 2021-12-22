@@ -291,7 +291,11 @@ class Tokenizer:
 if __name__ == "__main__":
     # tokenizer = Tokenizer("123.456+.456")
 
-    tokenizer = Tokenizer('"Hello, World!" + (123-456.789)')
+    # tokenizer = Tokenizer('"Hello, World!" + (123-456.789)')
+
+    # tokenizer = Tokenizer('SET name = (("Hello, World!") + (123-456.789))')
+
+    tokenizer = Tokenizer('PRINT "Hello, World!"')
 
     tokens = tokenizer.tokenize()
 
