@@ -52,7 +52,7 @@ class ModuleNode(Node):
         return
 
     def __str__(self) -> str:
-        return f"ModuleNode(body={len(self.__body)})"
+        return f"ModuleNode(body=[{self.__body}])"
 
     def __repr__(self) -> str:
         return self.__str__()
@@ -157,7 +157,7 @@ class BlockStatementNode(Node):
         return
 
     def __str__(self) -> str:
-        return f"BlockStatementNode(body={len(self.__body)})"
+        return f"BlockStatementNode(body=[{self.__body}])"
 
     def __repr__(self) -> str:
         return self.__str__()
